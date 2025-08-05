@@ -1,27 +1,55 @@
-from fastapi import HTTPException
 from http import HTTPStatus
 
-
-class AUTHORIZATION_ERROR(HTTPException):
-    def __init__(self, message: str = "Authorization Error") -> None:
-        super().__init__(status_code=HTTPStatus.UNAUTHORIZED,
-                         detail={"message": message, "isSuccess": False},
-                         headers={"WWW-Authenticate": "Bearer"})
+from src.utils import Error
 
 
-class NOT_FOUND_ERROR(HTTPException):
-    def __init__(self, message: str = "Not Found Error") -> None:
-        super().__init__(status_code=HTTPStatus.FORBIDDEN,
-                         detail={"message": message, "isSuccess": False})
+class HTTPError(Error):
+    status_code: HTTPStatus = HTTPStatus.INTERNAL_SERVER_ERROR
 
 
-class BAD_REQUEST_ERROR(HTTPException):
-    def __init__(self, message: str = "Bad Request Error") -> None:
-        super().__init__(status_code=HTTPStatus.BAD_REQUEST,
-                         detail={"message": message, "isSuccess": False})
+class ServiceError(HTTPError):
+    """Exception raised from service calls"""
+    status_code: HTTPStatus = HTTPStatus.INTERNAL_SERVER_ERROR
+    message = "Service Error"
 
 
-class METHOD_NOT_ALLOWED_ERROR(HTTPException):
-    def __init__(self, message: str = "Method Not Allowed Error") -> None:
-        super().__init__(status_code=HTTPStatus.METHOD_NOT_ALLOWED,
-                         detail={"message": message, "isSuccess": False})
+class ValidationError(HTTPError):
+    """Exception raised from request validations"""
+    status_code: HTTPStatus = HTTPStatus.UNPROCESSABLE_ENTITY
+    message = "Validation Error"
+
+
+class AuthorizationError(HTTPError):
+    """Exception raised from authorization errors"""
+    status_code: HTTPStatus = HTTPStatus.UNAUTHORIZED
+    message = "Authorization Error"
+
+
+class ForbiddenError(HTTPError):
+    """Exception raised from forbidden errors"""
+    status_code: HTTPStatus = HTTPStatus.FORBIDDEN
+    message = "Forbidden Error"
+
+
+class BadRequestError(HTTPError):
+    """Exception raised from bad request errors"""
+    status_code: HTTPStatus = HTTPStatus.BAD_REQUEST
+    message = "Bad Request Error"
+
+
+class NotFoundError(HTTPError):
+    """Exception raised from not found errors"""
+    status_code: HTTPStatus = HTTPStatus.NOT_FOUND
+    message = "Not Found Error"
+
+
+class MethodNotAllowedError(HTTPError):
+    """Exception raised from method not allowed errors"""
+    status_code: HTTPStatus = HTTPStatus.METHOD_NOT_ALLOWED
+    message = "Method Not Allowed Error"
+
+
+class TooManyRequestsError(HTTPError):
+    """Exception raised from too many requests errors"""
+    status_code: HTTPStatus = HTTPStatus.TOO_MANY_REQUESTS
+    message = "Too Many Requests Error"
