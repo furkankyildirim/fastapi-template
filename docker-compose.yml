@@ -1,14 +1,14 @@
 version: '3.9'
 services:
-  playground-api:
+  api:
     build:
       dockerfile: Dockerfile
 
-    container_name: playground-api
-    hostname: playground-api
-    image: playground-api
+    container_name: api
+    hostname: api
+    image: api
     volumes:
-      - .:/playground-api
+      - .:/api
       - ./logs:/logs
     ports:
       - "8000:8000"
