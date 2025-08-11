@@ -1,33 +1,74 @@
-from dotenv import load_dotenv
-from os import getcwd, environ as env
-
-load_dotenv()
-
-DEBUG = env.get('DEBUG', 'False').lower() in ('true', '1', 't')
-URL = env.get('DEVELOPMENT_URL', 'http://127.0.0.1:8000') if DEBUG else env.get('PRODUCTION_URL', None)
+from pydantic_core.core_schema import ValidationInfo
+from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
 
 
-class AppConfig:
-    DEBUG: bool = DEBUG
-    TESTING: bool = env.get('TESTING', 'False').lower() in ('true', '1', 't')
+class BaseConfig(BaseSettings):
+    # General application settings
+    DEBUG: bool = Field(default=False)
+    NAME: str = Field(default="FastAPI Template")
+    DESCRIPTION: str = Field(default="A simple async MVC API")
+    VERSION: str = Field(default="0.0.1")
+    TEST_URL: str = Field(default="http://localhost:8000")
+    PROD_URL: str = Field(default="http://localhost:8000")
 
-    NAME: str = env.get('NAME', 'FastAPI Template')
-    DESCRIPTION: str = env.get('DESCRIPTION', 'FastAPI Template using Docker, PostgreSQL and SQLAlchemy')
-    VERSION: str = env.get('VERSION', 'api/v1')
+    URL: str = None
 
-    URL = URL
-    API_URL: str = URL + '/api'
-    SECRET_KEY: str = env.get('SECRET_KEY', 'secret')
-    HASHING_ALGORITHM: str = env.get('HASHING_ALGORITHM', 'HS256')
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(env.get('ACCESS_TOKEN_EXPIRE_MINUTES', 30))
+    # Security settings
+    SECRET_KEY: str = Field(default="secret")
+    HASHING_ALGORITHM: str = Field(default="HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
 
-    MEDIA_FOLDER: str = getcwd() + env.get('MEDIA_FOLDER', '/media')
-    STATIC_FOLDER: str = getcwd() + env.get('STATIC_FOLDER', '/static')
-    NO_PHOTO_FILE: str = env.get('NO_PHOTO_FILE')
+    # PostgreSQL settings
+    POSTGRES_USER: str = Field(...)
+    POSTGRES_PASSWORD: str = Field(...)
+    POSTGRES_SERVER: str = Field(default="localhost")
 
-    POSTGRES_USER: str = env.get("POSTGRES_USER")
-    POSTGRES_PASSWORD = env.get("POSTGRES_PASSWORD")
-    POSTGRES_SERVER: str = env.get("POSTGRES_SERVER", "localhost")
-    POSTGRES_PORT: str = env.get("POSTGRES_PORT", 5432)  # default postgres port is 5432
-    POSTGRES_DB: str = env.get("POSTGRES_DB", "postgres")
-    DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    POSTGRES_DEV_USER: str = Field(default="postgres")
+    POSTGRES_DEV_PASSWORD: str = Field(default="123456")
+    POSTGRES_DEV_SERVER: str = Field(default="localhost")
+
+    POSTGRES_PORT: str = Field(default="5432")  # default PostgreSQL port
+    POSTGRES_DB: str = Field(default="fastapi-template")
+    DATABASE_URL: str = None
+
+    # AWS settings
+    AWS_ACCESS_KEY_ID: str = Field(...)
+    AWS_SECRET_ACCESS_KEY: str = Field(...)
+    AWS_REGION: str = Field(default="eu-central-1")
+    AWS_SES_SENDER: str = Field(default="noreply@fastapi-template.com")
+
+    @field_validator("URL", mode="before")
+    def assemble_url(cls, v, values: ValidationInfo):
+        """Assemble the application URL."""
+        if v:
+            return v
+        test_url = values.data.get('TEST_URL')
+        prod_url = values.data.get('PROD_URL')
+        debug = values.data.get('DEBUG')
+
+        return test_url if debug else prod_url
+
+    @field_validator("DATABASE_URL", mode="before")
+    def assemble_db_connection(cls, v, values: ValidationInfo):
+        """Assemble the PostgreSQL connection URL."""
+        if v:
+            return v
+
+        postgres_user = values.data.get('POSTGRES_USER' if not values.data.get('DEBUG') else 'POSTGRES_DEV_USER')
+        postgres_password = values.data.get(
+            'POSTGRES_PASSWORD' if not values.data.get('DEBUG') else 'POSTGRES_DEV_PASSWORD')
+        postgres_server = values.data.get('POSTGRES_SERVER' if not values.data.get('DEBUG') else 'POSTGRES_DEV_SERVER')
+        postgres_port = values.data.get('POSTGRES_PORT')
+        postgres_db = values.data.get('POSTGRES_DB')
+
+        return f"postgresql://{postgres_user}:{postgres_password}@{postgres_server}:{postgres_port}/{postgres_db}"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
+
+
+# Initialize configuration
+AppConfig = BaseConfig()

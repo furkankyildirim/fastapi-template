@@ -1,7 +1,7 @@
 from .user import UserController
-from .authentication import AuthenticationController
+from .auth import AuthController
 
 __all__ = [
     "UserController",
-    "AuthenticationController",
+    "AuthController",
 ]

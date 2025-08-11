@@ -1,84 +1,109 @@
-from typing import Union
-from sqlalchemy.orm import Session
-from fastapi.encoders import jsonable_encoder
+from datetime import datetime, date, timedelta
+from sqlmodel import select
 
-from src.database import PostgresqlConnection
-from src.models import User
-from src.schemas import UserSchema
+from src.database.connections import postgres_session as session
+from src.models import UserModel, UserCreateModel
 
 
 class UserDatabase:
-    _postgre_connection = PostgresqlConnection()
+    @staticmethod
+    def get_user(user_id: str) -> UserModel:
+        """
+        Get user by ID:
+
+        Args:
+            user_id (str): User ID.
+
+        Returns:
+            UserModel: User model.
+        """
+        return session.get(UserModel, user_id)
 
     @staticmethod
-    def get_user(user_id: str) -> Union[User, None]:
+    def get_user_by_email(email: str) -> UserModel:
         """
-        Get user:
-            
-        - user_id: int = User ID.
-            
-        """
+        Get user by email:
 
-        db: Session = next(UserDatabase._postgre_connection())
-        user: User = db.query(User).filter(User.id == user_id).first()
-        return user
+        Args:
+            email (str): Email.
+
+        Returns:
+            UserAuthModel: User authentication model.
+        """
+        db_user = session.exec(select(UserModel).where(UserModel.email == email)).first()
+        return db_user
 
     @staticmethod
-    def get_user_by_email(email: str) -> Union[UserSchema, None]:
+    def get_users(company_id: str, limit: int, offset: int) -> list[UserModel]:
         """
-        Get user:
-            
-        - email: str = User email.
-            
-        """
+        Get users:
 
-        db: Session = next(UserDatabase._postgre_connection())
-        user: User = db.query(User).filter(User.email == email).first()
-        return user
+        Args:
+            company_id (str): Company ID.
+            limit (int): Limit.
+            offset (int): Offset.
+
+        Returns:
+            list[UserModel]: List of user models.
+        """
+        return session.exec(select(UserModel).where(UserModel.company_id == company_id).offset(offset).limit(limit)).all()
 
     @staticmethod
-    def get_user_by_username(username: str) -> Union[UserSchema, None]:
-        """
-        Get user:
-            
-        - username: str = User username.
-            
-        """
-
-        db: Session = next(UserDatabase._postgre_connection())
-        user: User = db.query(User).filter(User.username == username).first()
-        return user
-
-    @staticmethod
-    def update_profile_photo(current_user: UserSchema, image: str) -> Union[UserSchema, None]:
-        """
-        Update profile photo:
-
-        - current_user: UserSchema = Current user.
-        - image: str = Photo filename.
-            
-        """
-
-        db: Session = next(UserDatabase._postgre_connection())
-        user: User = db.query(User).filter(User.id == current_user.id).first()
-        user.profile_photo = image
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return user
-
-    @staticmethod
-    def create_user(user: UserSchema):
+    def create_user(user: UserCreateModel) -> UserModel:
         """
         Create user:
-            
-        - user: UserSchema = User schema.
-            
+
+        Args:
+            user (UserCreateModel): User create model.
+
+        Returns:
+            UserModel: User model.
         """
 
-        db: Session = next(UserDatabase._postgre_connection())
-        user_model = User(**jsonable_encoder(user))
-        db.add(user_model)
-        db.commit()
-        db.refresh(user_model)
-        return user
+        db_user = UserModel.model_validate(user)
+    
+        db_user.credit = 10.0
+        db_user.exp_date = date.today() + timedelta(days=7)
+
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+        return db_user
+
+    @staticmethod
+    def update_user(user_id: str, user: UserModel) -> UserModel:
+        """
+        Update user:
+
+        Args:
+            user_id (str): User ID.
+            user (UserCreateModel): User create model.
+
+        Returns:
+            UserModel: User model.
+        """
+        user.updated_at = datetime.now()
+
+        db_user = UserDatabase.get_user(user_id)
+        # SQLModel doesn't support direct update with session.exec, so we need to use a different approach
+        db_user = UserDatabase.get_user(user_id)
+        if db_user:
+            for key, value in user.model_dump().items():
+                setattr(db_user, key, value)
+            session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+        return db_user
+
+    @staticmethod
+    def filter_users_by_email_domain(domain: str) -> list[UserModel]:
+        """
+        Filter users by email domain:
+
+        Args:
+            domain (str): Email domain (e.g., 'gmail.com').
+
+        Returns:
+            list[UserModel]: List of user models with the specified email domain.
+        """
+        return session.exec(select(UserModel).where(UserModel.email.endswith(f"@{domain}"))).all()

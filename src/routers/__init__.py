@@ -1,10 +1,11 @@
 from .router import Router
-from src.controllers import UserController, AuthenticationController
+from src.controllers import UserController, AuthController
 
-user_route = Router(router=UserController.router, prefix='/api/user')
-authentication_route = Router(router=AuthenticationController.router, prefix='/api/authentication')
+auth_route = Router(router=AuthController.router, prefix='/auth')
+user_route = Router(router=UserController.router, prefix='/user')
+
 
 __all__ = [
+    "auth_route",
     "user_route",
-    "authentication_route",
 ]

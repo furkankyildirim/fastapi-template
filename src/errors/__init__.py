@@ -1,9 +1,14 @@
-from .generic import AUTHORIZATION_ERROR, NOT_FOUND_ERROR, BAD_REQUEST_ERROR, METHOD_NOT_ALLOWED_ERROR
+from .generic import (ServiceError, ValidationError, AuthorizationError, BadRequestError, NotFoundError, ForbiddenError,
+                      MethodNotAllowedError, TooManyRequestsError)
 
 
 __all__ = [
-    "AUTHORIZATION_ERROR",
-    "NOT_FOUND_ERROR",
-    "BAD_REQUEST_ERROR",
-    "METHOD_NOT_ALLOWED_ERROR",
+    "ServiceError",
+    "ValidationError",
+    "AuthorizationError",
+    "BadRequestError",
+    "NotFoundError",
+    "ForbiddenError",
+    "MethodNotAllowedError",
+    "TooManyRequestsError",
 ]

@@ -1,8 +1,7 @@
-from .postgresql import PostgresqlConnection
 from .user import UserDatabase
-
+from .token import TokenDatabase
 
 __all__ = [
-    'PostgresqlConnection',
-    'UserDatabase',
+    "UserDatabase",
+    "TokenDatabase",
 ]

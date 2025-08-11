@@ -1,188 +1,105 @@
-from src.errors import BAD_REQUEST_ERROR, NOT_FOUND_ERROR
-from src.schemas.common import Response
+from datetime import datetime
+
 from src.database import UserDatabase
-from src.schemas import UserSchema, ProfilePhotoSchema
-from src.utils import ImageUtils, ImageResponse
+from src.models import UserModel, UserEditInfoModel, UserEditEmailModel, UserEditPasswordModel
+from src.errors import BadRequestError, AuthorizationError
+from src.utils.security import SecurityUtils
+from src.utils.validation import ValidationUtils
 
 
 class UserService:
+
     @staticmethod
-    def get_user(user_id: str) -> Response:
+    def get_user(current_user: UserModel, user_id: str) -> UserModel:
         """
         Get user:
 
-        - user: UserSchema = User schema.
+        Args:
+            current_user (UserModel): Current user.
+            user_id (str): User ID.
 
+        Returns:
+            UserModel: User model.
         """
+        if not current_user.is_admin and current_user.id != user_id:
+            raise AuthorizationError(message="You are not allowed to view this user")
+
         user = UserDatabase.get_user(user_id=user_id)
         if not user:
-            raise NOT_FOUND_ERROR(message=f"User with the id {user_id} is not available")
-
-        user.profile_photo = UserService.__set_photo_url(photo=user.profile_photo)
-        return Response(isSuccess=True, data=user,
-                        message="User with the id is returned successfully")
-
-    @staticmethod
-    def get_current_user(current_user) -> Response:
-        """
-        Get current user:
-
-        - current_user: User = Current user.
-
-        """
-        current_user.profile_photo = UserService.__set_photo_url(photo=current_user.profile_photo)
-        return Response(isSuccess=True, data=current_user,
-                        message="Current user is returned successfully")
-
-    @staticmethod
-    def create_user(user: UserSchema) -> Response:
-        """
-        Create user:
-
-        - user: UserSchema = User schema.
-
-        """
-        UserService._check_user_validations(email=user.email, username=user.username)
-        user = UserDatabase.create_user(user=user)
-        return Response(isSuccess=True, data=user, message="User is created successfully")
-
-    @staticmethod
-    def get_profile_photo(image: str) -> ImageResponse:
-        """
-        Get profile photo:
-
-        - image: str =  Photo filename.
-
-        """
-        return ImageUtils.get_image(filename=image, subdir="profile")
-
-    @staticmethod
-    def update_profile_photo(current_user, image) -> Response:
-        """
-        Update profile photo:
-
-        - current_user: User = Current user.
-        - image: UploadFile = New image.
-
-        """
-        if current_user.profile_photo:
-            filename: str = ImageUtils.get_filename_from_url(url=current_user.profile_photo)
-            ImageUtils.delete_image(filename=filename, subdir="profile")
-
-        filename: str = ImageUtils.upload_image(image=image, subdir="profile")
-        prefix: str = ImageUtils.get_image_with_prefix(
-            filename=filename, prefix="user/profile-photo")
-
-        current_user = UserDatabase.update_profile_photo(current_user=current_user, image=prefix)
-
-        if current_user.profile_photo != prefix:
-            raise BAD_REQUEST_ERROR(message=f"Profile photo is not updated")
-
-        profile_photo_url: str = ImageUtils.get_image_url_from_prefix(prefix=prefix)
-        return Response(isSuccess=True, message="Profile photo is uploaded successfully",
-                        data=ProfilePhotoSchema(url=profile_photo_url))
-
-    @staticmethod
-    def delete_profile_photo(current_user) -> Response:
-        """
-        Delete profile photo:
-
-        - current_user: User = Current user.
-
-        """
-        if current_user.profile_photo:
-            filename: str = ImageUtils.get_filename_from_url(url=current_user.profile_photo)
-            ImageUtils.delete_image(filename=filename, subdir="profile")
-
-        filename: str = ImageUtils.get_default_image()
-        prefix: str = ImageUtils.get_image_with_prefix(
-            filename=filename, prefix="user/profile-photo")
-
-        current_user = UserDatabase.update_profile_photo(current_user=current_user, image=prefix)
-
-        if current_user.profile_photo != prefix:
-            raise BAD_REQUEST_ERROR(message=f"Profile photo is not updated")
-
-        profile_photo_url: str = ImageUtils.get_image_url_from_prefix(prefix=prefix)
-        return Response(isSuccess=True, message="Profile photo is deleted successfully",
-                        data=ProfilePhotoSchema(url=profile_photo_url))
-
-    @staticmethod
-    def _set_user_schema(user) -> UserSchema:
-        """
-        Set profile photo url and user schema:
-
-        - user: UserSchema = User schema.
-
-        """
-        user.profile_photo: str = UserService.__set_photo_url(photo=user.profile_photo)
-
-        user: UserSchema = UserSchema(
-            id=user.id,
-            name=user.name,
-            username=user.username,
-            email=user.email,
-            profile_photo=user.profile_photo,
-        )
-
+            raise BadRequestError(message="User not found")
         return user
 
     @staticmethod
-    def _validate_user_id(id: str) -> None:
+    def update_user_info(current_user: UserModel, data: UserEditInfoModel) -> UserModel:
         """
-        Validate user id:
-
-        - user_id: str = User id.
-
+        Update user's first name and last name.
+        
+        Args:
+            current_user (UserModel): Current user.
+            data (UserEditInfoModel): Updated user information.
+            
+        Returns:
+            UserModel: Updated user model.
         """
-        if not id:
-            raise BAD_REQUEST_ERROR(message="User id is required")
+        if not data.name or not data.surname:
+            raise BadRequestError(message="Name and surname cannot be empty.")
 
-        if not UserDatabase.get_user(user_id=id):
-            raise NOT_FOUND_ERROR(message=f"User with the id {id} is not available")
+        current_user.name = data.name
+        current_user.surname = data.surname
+
+        return UserDatabase.update_user(user_id=current_user.id, user=current_user)
 
     @staticmethod
-    def _check_user_validations(email: str = None, username: str = None) -> None:
+    async def update_user_email(current_user: UserModel, data: UserEditEmailModel) -> UserModel:
         """
-        Checks if user validations are used before creating user:
-
-        - email: str = Email.
-        - username: str = Username.
-
+        Update user's email address.
+        
+        Args:
+            current_user (UserModel): Current user.
+            data (UserEditEmailModel): Updated email information.
+            
+        Returns:
+            UserModel: Updated user model.
         """
-        if email and UserService.__check_email_is_used(email=email):
-            raise BAD_REQUEST_ERROR(message=f"Email {email} is already used")
-        if username and UserService.__check_username_is_used(username=username):
-            raise BAD_REQUEST_ERROR(message=f"Username {username} is already used")
+        from src.services.auth import AuthService  # Import here to avoid circular imports
+
+        new_email = data.email
+
+        # Validate new email with improved Gmail handling
+        ValidationUtils.validate_email(email=new_email, skip_user_id=current_user.id)
+
+        # Update user with new email
+        current_user.email = new_email
+        current_user.is_active = None
+
+        updated_user = UserDatabase.update_user(user_id=current_user.id, user=current_user)
+
+        # Send activation email to new address
+        await AuthService.send_activation_email(user=updated_user)
+
+        return updated_user
 
     @staticmethod
-    def __check_email_is_used(email: str) -> bool:
+    def update_user_password(current_user: UserModel, data: UserEditPasswordModel) -> UserModel:
         """
-        Checks if email is used:
-
-        - email: str = Email.
-
+        Update user's password.
+        
+        Args:
+            current_user (UserModel): Current user.
+            data (UserEditPasswordModel): Password change data.
+            
+        Returns:
+            UserModel: Updated user model.
         """
-        user = UserDatabase.get_user_by_email(email=email)
-        return True if user else False
+        # Verify old password
+        if not SecurityUtils.verify(hashed_password=current_user.password, plain_password=data.old_password):
+            raise BadRequestError(message="Incorrect password.")
 
-    @staticmethod
-    def __check_username_is_used(username: str) -> bool:
-        """
-        Checks if username is used:
+        # Validate new password strength
+        ValidationUtils.validate_password(data.new_password)
 
-        - username: str = Username.
+        # Hash and update the new password
+        current_user.password = SecurityUtils.bcrypt(text=data.new_password)
+        current_user.updated_at = datetime.now()
 
-        """
-        user = UserDatabase.get_user_by_username(username=username)
-        return True if user else False
-
-    @staticmethod
-    def __set_photo_url(photo: str) -> str:
-        """
-        Set photo url:
-
-        - photo: str = Photo filename.
-
-        """
-        return ImageUtils.get_image_url_from_prefix(prefix=photo)
+        return UserDatabase.update_user(user_id=current_user.id, user=current_user)

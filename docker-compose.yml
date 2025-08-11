@@ -1,30 +1,21 @@
-version: '3.3'
+version: '3.9'
 services:
-    app:
-        build: 
-            context: .
-            dockerfile: Dockerfile
-        container_name: app
-        hostname: app
-        image: app
-        volumes:
-            - .:/app
-        ports:
-            - 127.0.0.1:8000:8000
-        restart: always
-        depends_on:
-            - db
-    db:
-        image: postgres
-        container_name: postgres
-        restart: always
-        ports:
-            - "5432:5432"
-        environment:
-            POSTGRES_USER: $POSTGRES_USER
-            POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-        volumes:
-            - local_pgdata:/var/lib/postgresql/data
+  fastapi-template:
+    build:
+      dockerfile: Dockerfile
 
-volumes:
-    local_pgdata:
+    container_name: fastapi-template
+    hostname: fastapi-template
+    image: fastapi-template
+    volumes:
+      - .:/fastapi-template
+      - ./logs:/logs
+    ports:
+      - "8000:8000"
+    restart: always
+    networks:
+      - fastapi-template-network
+
+networks:
+  fastapi-template-network:
+    driver: bridge

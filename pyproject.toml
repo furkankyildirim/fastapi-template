@@ -1,0 +1,20 @@
+[project]
+name = "fastapi-template"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.12.15",
+    "alembic>=1.16.4",
+    "boto3>=1.40.6",
+    "fastapi-cache2>=0.2.2",
+    "fastapi[standard]>=0.116.1",
+    "loguru>=0.7.3",
+    "passlib>=1.7.4",
+    "psycopg2-binary>=2.9.10",
+    "pydantic-settings>=2.10.1",
+    "python-jose>=3.5.0",
+    "redis>=6.4.0",
+    "sqlmodel>=0.0.24",
+]
